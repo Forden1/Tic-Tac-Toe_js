@@ -1,151 +1,108 @@
-const Cell = () => {
-    let value = null; 
-    
-    const addToken = (player) => {
-        if (value === null) { 
-            value = player; 
-        }
-    };
-    
-    const getValue = () => value;
+// Select all the cells and the reset button from the DOM
+const cells = document.querySelectorAll('.cell');
+const resetButton = document.getElementById('reset-button');
 
-    return { addToken, getValue }; 
-};
-
-function Player(name, marker) {
-    return { name, marker };
+// Player factory function to create player objects with a marker ('X' or 'O')
+function Player(marker) {
+    return { marker };
 }
-    
-const GameController = (function () {
-    const player1 = Player('Player X', 'X');
-    const player2 = Player('Player O', 'O');
-    let currentPlayer = player1;
-    let gameActive = true;
 
-    const startRound = () => {
-        Gameboard.resetBoard();
-        currentPlayer = player1;
-        gameActive = true;
-    };
+// Immediately invoked function expression (IIFE) for the GameBoard module
+const GameBoard = (function() {
+    // Game state variables
+    let board = ["", "", "", "", "", "", "", "", ""]; // Array representing the game board
+    let currentPlayer = 'X'; // Set initial player
+    let gameActive = true; // Game is active
 
-    const handleCellClick = (event) => {
-        if (!gameActive) return;
+    // Define all winning combinations of indexes
+    const winningCombinations = [
+        [0, 1, 2],
+        [3, 4, 5],
+        [6, 7, 8],
+        [0, 3, 6],
+        [1, 4, 7],
+        [2, 5, 8],
+        [0, 4, 8],
+        [2, 4, 6]
+    ];
 
-        const row = parseInt(event.target.dataset.row, 10);
-        const column = parseInt(event.target.dataset.column, 10);
+    // Check if the current player has won
+    function checkWin() {
+        // Return true if any winning combination is satisfied by the current player's markers
+        return winningCombinations.some(combination => {
+            return combination.every(index => board[index] === currentPlayer);
+        });
+    }
 
-        if (Gameboard.getBoard()[row][column].getValue() === null) {
-            Gameboard.placeToken(row, column, currentPlayer.marker);
+    // Handle click event on a cell
+    function handleCellClick(event) {
+        const cell = event.target; // Get the clicked cell
+        const index = cell.getAttribute('data-index'); // Get the index of the clicked cell
 
-            const winner = Gameboard.checkWinners();
-
-            if (winner) {
-                alert(`Winner: ${winner}`);
-                gameActive = false;
-            } else if (Gameboard.availableCells().length === 0) {
-                alert("It's a tie!");
-                gameActive = false;
-            }
-
-            currentPlayer = currentPlayer === player1 ? player2 : player1;
+        // Check if the cell is already occupied or the game is not active
+        if (board[index] !== '' || !gameActive) {
+            return;
         }
-    };
 
-    document
-        .getElementById('reset-button')
-        .addEventListener('click', startRound);
+        // Mark the board with the current player's marker
+        board[index] = currentPlayer; 
+        cell.textContent = currentPlayer; // Update the cell's text to display the marker
 
-    return { startRound };
-})();
-
-const Gameboard = (function() {
-    const rows = 3; 
-    const columns = 3; 
-    let board = [];
-
-    const initializeBoard = () => {
-        board = [];
-        for (let i = 0; i < rows; i++) {
-            board[i] = [];
-            for (let j = 0; j < columns; j++) {
-                board[i][j] = Cell(); // Fill the board with new empty cells
-            }
-        }
-    };
-
-    // Initialize the board when Gameboard is created
-    initializeBoard();
-
-    const resetBoard = () => {
-        initializeBoard(); // Call to reinitialize the board for a new round
-    };
-
-    const getBoard = () => board; // Return the current state of the board
-
-    const availableCells = () => {
-        const moves = [];
-        for (let i = 0; i < rows; i++) { // Iterate over rows
-            for (let j = 0; j < columns; j++) { // Iterate over columns
-                if (board[i][j].getValue() === null) {
-                    moves.push({ row: i, column: j }); // Store available cell coordinates
-                }
-            }
-        }
-        return moves; // Return the list of available moves
-    };
-    
-    const placeToken = (row, column, player) => {
-        if (board[row][column].getValue() === null) { // Check if the cell is empty
-            board[row][column].addToken(player); // Add the player's token
+        // Check for a win after the move
+        if (checkWin()) {
+            alert(`${currentPlayer} is the winner!`); // Alert the winner
+            gameActive = false; // Stop the game
+        } else if (board.every(cell => cell !== '')) { // Check for a draw
+            alert('It\'s a draw!');
+            gameActive = false; // Stop the game
         } else {
-            console.log("This cell is already full.");
+            switchPlayer(); // Switch to the other player
         }
-    };
+    }
 
-    const printBoard = () => {
-        const boardWithCellValues = board.map(row => row.map(cell => cell.getValue() || " "));
-        console.log(boardWithCellValues); // Display the board
-    };
+    // Function to switch the player
+    function switchPlayer() {
+        currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; // Toggle between 'X' and 'O'
+    }
 
-    const checkWinners = () => {
-        const size = board.length; // Size of the board (usually 3 for Tic-Tac-Toe)
+    // Reset the game to the initial state
+    function resetGame() {
+        board = ["", "", "", "", "", "", "", "", ""]; // Clear the board
+        cells.forEach(cell => cell.textContent = ''); // Clear the text in all cells
+        currentPlayer = 'X'; // Reset the first player to 'X'
+        gameActive = true; // Make the game active again
+    }
 
-        // Define all winning combinations (rows, columns, and diagonals)
-        const winningCombinations = [];
+    // Add event listeners to each cell
+    cells.forEach(cell => cell.addEventListener('click', handleCellClick));
+    
+    // Add event listener to the reset button
+    resetButton.addEventListener('click', resetGame);
 
-        // Add rows to the winning combinations
-        for (let row = 0; row < size; row++) {
-            winningCombinations.push([board[row][0].getValue(), board[row][1].getValue(), board[row][2].getValue()]);
-        }
-
-        // Add columns to the winning combinations
-        for (let col = 0; col < size; col++) {
-            winningCombinations.push([board[0][col].getValue(), board[1][col].getValue(), board[2][col].getValue()]);
-        }
-
-        // Add diagonals to the winning combinations
-        winningCombinations.push([board[0][0].getValue(), board[1][1].getValue(), board[2][2].getValue()]);
-        winningCombinations.push([board[0][2].getValue(), board[1][1].getValue(), board[2][0].getValue()]);
-
-        // Check each winning combination
-        for (const combination of winningCombinations) {
-            if (combination[0] && combination[0] === combination[1] && combination[1] === combination[2]) {
-                return combination[0]; // Return the winner ('X' or 'O')
-            }
-        }
-
-        return null; // No winner
-    };
-
-    return { 
-        getBoard, 
-        placeToken, 
-        printBoard, 
-        availableCells, 
-        checkWinners,
-        resetBoard
+    // Return any necessary properties or methods if needed
+    return {
+        handleCellClick,
+        resetGame,
+        switchPlayer
     };
 })();
 
-// Start the game
-GameController.startRound();
+// Create players using the Player factory function
+const Player1 = Player("X");
+const Player2 = Player("O");
+
+// The GameManager module for initializing and managing the game
+const GameManager = (function() {
+    // Initialize the game and reset the board
+    function initializeGame() {
+        GameBoard.resetGame(); // Reset the game using GameBoard's reset function
+    }
+
+    // Return any necessary methods to be accessed outside
+    return {
+        initializeGame
+    };
+})();
+
+// Initialize the game when the script loads
+GameManager.initializeGame();
